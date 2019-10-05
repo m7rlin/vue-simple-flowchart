@@ -4,8 +4,9 @@
     @mousemove="handleMove"
     @mouseup="handleUp"
     @mousedown="handleDown"
+    @wheel="zoom"
   >
-    <svg width="100%" :height="`${height}px`">
+    <svg width="100%" :height="getHeight">
       <flowchart-link
         v-bind.sync="link"
         v-for="(link, index) in lines"
@@ -40,6 +41,9 @@ export default {
         return {
           centerX: 1024,
           scale: 1,
+          minScale: 1,
+          maxScale: 2,
+          step: 0.1,
           centerY: 140,
           nodes: [],
           links: []
@@ -47,7 +51,7 @@ export default {
       }
     },
     height: {
-      type: Number,
+      type: [Number, String],
       default: 400
     }
   },
@@ -88,6 +92,10 @@ export default {
     }
   },
   computed: {
+    getHeight() {
+      const { height } = this.$props;
+      return Number.isInteger(this.height) ? `${height}px` : height;
+    },
     nodeOptions() {
       return {
         centerY: this.scene.centerY,
@@ -99,15 +107,16 @@ export default {
       };
     },
     lines() {
+      // console.log(this.scene.scale);
       const lines = this.scene.links.map(link => {
         const fromNode = this.findNodeWithID(link.from);
         const toNode = this.findNodeWithID(link.to);
         let x, y, cy, cx, ex, ey;
-        x = this.scene.centerX + fromNode.x;
-        y = this.scene.centerY + fromNode.y;
+        x = this.scene.centerX + fromNode.x * this.scene.scale;
+        y = this.scene.centerY + fromNode.y * this.scene.scale;
         [cx, cy] = this.getPortPosition("bottom", x, y);
-        x = this.scene.centerX + toNode.x;
-        y = this.scene.centerY + toNode.y;
+        x = this.scene.centerX + toNode.x * this.scene.scale;
+        y = this.scene.centerY + toNode.y * this.scene.scale;
         [ex, ey] = this.getPortPosition("top", x, y);
         return {
           start: [cx, cy],
@@ -118,8 +127,8 @@ export default {
       if (this.draggingLink) {
         let x, y, cy, cx;
         const fromNode = this.findNodeWithID(this.draggingLink.from);
-        x = this.scene.centerX + fromNode.x;
-        y = this.scene.centerY + fromNode.y;
+        x = this.scene.centerX + fromNode.x * this.scene.scale;
+        y = this.scene.centerY + fromNode.y * this.scene.scale;
         [cx, cy] = this.getPortPosition("bottom", x, y);
         // push temp dragging link, mouse cursor postion = link end postion
         lines.push({
@@ -136,6 +145,45 @@ export default {
     // console.log(22222, this.rootDivOffset);
   },
   methods: {
+    zoom(e) {
+      // console.log("wheel", e);
+      const { deltaY } = e;
+      if (deltaY > 0) {
+        // scroll down
+        // console.log("down");
+        this.zoomDown();
+      } else if (deltaY < 0) {
+        // scroll up
+        // console.log("up");
+        this.zoomUp();
+      }
+    },
+    // zoom one step in
+    zoomUp() {
+      const { scale, step, maxScale } = this.scene;
+      if (scale + step <= maxScale) {
+        this.scene.centerX += 40;
+        this.scene.scale += step;
+      } else {
+        if (scale != maxScale) {
+          this.scene.centerX += 40;
+        }
+        this.scene.scale = maxScale;
+      }
+    },
+    // zoom one step out
+    zoomDown() {
+      const { scale, step, minScale } = this.scene;
+      if (scale - step >= minScale) {
+        this.scene.centerX -= 40;
+        this.scene.scale -= step;
+      } else {
+        if (scale != minScale) {
+          this.scene.centerX -= 40;
+        }
+        this.scene.scale = minScale;
+      }
+    },
     findNodeWithID(id) {
       return this.scene.nodes.find(item => {
         return id === item.id;
@@ -143,9 +191,9 @@ export default {
     },
     getPortPosition(type, x, y) {
       if (type === "top") {
-        return [x + 40, y];
+        return [x + 40 * this.scene.scale, y];
       } else if (type === "bottom") {
-        return [x + 40, y + 80];
+        return [x + 40 * this.scene.scale, y + 80 * this.scene.scale];
       }
     },
     linkingStart(index) {
