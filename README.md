@@ -16,6 +16,8 @@ Original Demo
 
 [https://jeffreyrn.github.io/vue-simple-flowchart/demo/](https://jeffreyrn.github.io/vue-simple-flowchart/demo/)
 
+![Gallery](https://i.imgur.com/c6F0zfL.png)
+
 ### Feature
 
 - drag to connent two node, click to delete link
